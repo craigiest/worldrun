@@ -465,6 +465,11 @@ function getSeeds()     { return load(KEYS.seeds) || { nmMonth: 0, nmYear: 0, nm
 function getSettings()  { return load(KEYS.settings) || { units: 'both' }; }
 
 function addRun(nm) {
+  // Lifetime is a direct counter on seeds — no need to re-sum history.
+  const seeds = getSeeds();
+  seeds.nmLife = (seeds.nmLife || 0) + nm;
+  save(KEYS.seeds, seeds);
+  // Run log is only kept for month/year period filtering.
   const runs = getRuns();
   runs.push({ date: todayISO(), nm });
   save(KEYS.runs, runs);
@@ -494,22 +499,21 @@ function computeTotals() {
   const monthPrefix = monthKey;
   const yearPrefix  = yearKey;
 
-  let nmMonth = 0, nmYear = 0, nmLife = 0;
+  // Lifetime is maintained as a direct counter on seeds.nmLife.
+  // Only month/year need run log iteration for period filtering.
+  let nmMonth = 0, nmYear = 0;
   for (const r of runs) {
-    nmLife += r.nm;
     if (r.date.startsWith(yearPrefix))  nmYear  += r.nm;
     if (r.date.startsWith(monthPrefix)) nmMonth += r.nm;
   }
 
-  // Seed period values only count if they were saved in the current period.
-  // Missing key (old data) is treated as matching to preserve existing data.
   const seedMonth = (!seeds.monthKey || seeds.monthKey === monthKey) ? (seeds.nmMonth || 0) : 0;
   const seedYear  = (!seeds.yearKey  || seeds.yearKey  === yearKey)  ? (seeds.nmYear  || 0) : 0;
 
   return {
     nmMonth: nmMonth + seedMonth,
     nmYear:  nmYear  + seedYear,
-    nmLife:  nmLife  + (seeds.nmLife || 0)
+    nmLife:  seeds.nmLife || 0
   };
 }
 
