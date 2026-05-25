@@ -188,6 +188,44 @@
       margin-bottom: 20px;
       line-height: 1.5;
     }
+
+    /* ── Stat rows ── */
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--surface2);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: .85rem; color: var(--muted); }
+    .stat-value { font-size: 1rem; font-weight: 600; text-align: right; }
+    .stat-value.both { font-size: .85rem; line-height: 1.6; }
+
+    .pace-bar-wrap {
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 3px;
+      margin: 8px 0 4px;
+      overflow: hidden;
+    }
+    .pace-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width .4s ease;
+    }
+    .pace-bar.on-pace  { background: var(--accent2); }
+    .pace-bar.behind   { background: var(--warn); }
+    .pace-bar.complete { background: var(--accent); }
+
+    .delta {
+      font-size: .8rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .delta.ahead  { background: rgba(0,229,160,.15); color: var(--accent2); }
+    .delta.behind { background: rgba(255,107,107,.15); color: var(--warn); }
   </style>
 </head>
 <body>
@@ -623,7 +661,98 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   renderMain();
 });
 
-function renderStats() { /* Step 6 */ }
+// ── Unit display helpers ──────────────────────────────────────
+function getUnits() { return getSettings().units; }
+
+function dispNm(nm, dec = 2) { return `${fmt(nm, dec)} nm`; }
+function dispSm(nm, dec = 2) { return `${fmt(nmToSm(nm), dec)} sm`; }
+function dispVal(nm, dec = 2) {
+  const u = getUnits();
+  if (u === 'nm')   return dispNm(nm, dec);
+  if (u === 'sm')   return dispSm(nm, dec);
+  return `${fmt(nm, dec)} nm / ${fmt(nmToSm(nm), dec)} sm`;
+}
+
+// ── renderStats ───────────────────────────────────────────────
+function renderStats() {
+  const goal = load(KEYS.goal);
+  if (!goal) return;
+  const p = computePace(goal);
+  const sec = document.getElementById('stats-section');
+
+  function deltaEl(nm) {
+    const cls   = nm >= 0 ? 'ahead' : 'behind';
+    const label = nm >= 0 ? `+${dispVal(Math.abs(nm))} ahead` : `${dispVal(Math.abs(nm))} behind`;
+    return `<span class="delta ${cls}">${label}</span>`;
+  }
+
+  function paceBar(actual, goal) {
+    const pct = Math.min(100, goal > 0 ? (actual / goal * 100) : 0);
+    const behind = actual < goal * (new Date().getDate() / daysInMonth(new Date()));
+    const cls = pct >= 100 ? 'complete' : (behind ? 'behind' : 'on-pace');
+    return `<div class="pace-bar-wrap"><div class="pace-bar ${cls}" style="width:${pct}%"></div></div>`;
+  }
+
+  sec.innerHTML = `
+    <div class="card">
+      <div class="section-heading">This Month</div>
+      <div class="stat-row">
+        <span class="stat-label">Run so far</span>
+        <span class="stat-value">${dispVal(p.totals.nmMonth)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Month goal</span>
+        <span class="stat-value">${dispVal(p.monthGoal)}</span>
+      </div>
+      ${paceBar(p.totals.nmMonth, p.monthGoal)}
+      <div class="stat-row">
+        <span class="stat-label">vs. pace</span>
+        <span class="stat-value">${deltaEl(p.aheadMonth)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Remaining</span>
+        <span class="stat-value">${dispVal(p.remainMonth)}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-heading">This Year</div>
+      <div class="stat-row">
+        <span class="stat-label">Run so far</span>
+        <span class="stat-value">${dispVal(p.totals.nmYear)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Year goal (360 days)</span>
+        <span class="stat-value">${dispVal(p.yearGoal)}</span>
+      </div>
+      ${paceBar(p.totals.nmYear, p.yearGoal)}
+      <div class="stat-row">
+        <span class="stat-label">vs. pace</span>
+        <span class="stat-value">${deltaEl(p.aheadYear)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Remaining</span>
+        <span class="stat-value">${dispVal(p.remainYear)}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-heading">Lifetime</div>
+      <div class="stat-row">
+        <span class="stat-label">Total distance</span>
+        <span class="stat-value">${dispVal(p.totals.nmLife)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">World circumference</span>
+        <span class="stat-value">${dispVal(WORLD_NM, 0)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Remaining</span>
+        <span class="stat-value">${dispVal(Math.max(0, WORLD_NM - p.totals.nmLife))}</span>
+      </div>
+    </div>
+  `;
+}
 function renderRing()  { /* Step 7 */ }
 
 // ── Service worker ────────────────────────────────────────────
