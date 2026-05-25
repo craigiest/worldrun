@@ -387,8 +387,10 @@
 
     <!-- Date header -->
     <div class="card" id="date-card">
-      <div id="date-display" style="font-size:1.4rem;font-weight:700"></div>
-      <div id="doy-display" style="font-size:.9rem;color:var(--muted);margin-top:2px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div id="date-display" style="font-size:1rem;font-weight:700"></div>
+        <div id="doy-display" style="font-size:.85rem;color:var(--muted);white-space:nowrap"></div>
+      </div>
     </div>
 
     <!-- Run entry -->
@@ -420,6 +422,27 @@
 
     <!-- Progress ring — filled by renderMain() -->
     <div id="progress-section"><!-- Step 7 --></div>
+
+    <!-- Unit converter -->
+    <div class="card">
+      <div class="section-heading">Converter</div>
+      <div class="field-row">
+        <div style="flex:1">
+          <label class="field-label" for="conv-nm">Nautical miles</label>
+          <div class="field-row">
+            <input class="field-input" id="conv-nm" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+            <span class="field-unit">nm</span>
+          </div>
+        </div>
+        <div style="flex:1">
+          <label class="field-label" for="conv-mi">Statute miles</label>
+          <div class="field-row">
+            <input class="field-input" id="conv-mi" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+            <span class="field-unit">mi</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div style="height:24px"></div>
   </div>
@@ -918,6 +941,18 @@ function renderRing() {
     if (el) el.style.strokeDashoffset = offset;
   });
 }
+
+// ── Standalone converter ──────────────────────────────────────
+const convNmEl = document.getElementById('conv-nm');
+const convMiEl = document.getElementById('conv-mi');
+convNmEl.addEventListener('input', () => {
+  const v = parseFloat(convNmEl.value);
+  convMiEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+});
+convMiEl.addEventListener('input', () => {
+  const v = parseFloat(convMiEl.value);
+  convNmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+});
 
 // ── Service worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
