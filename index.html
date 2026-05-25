@@ -743,7 +743,7 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
 
 // ── Unit toggle ───────────────────────────────────────────────
 const UNIT_CYCLE = ['nm', 'sm', 'both'];
-const UNIT_LABELS = { nm: 'nm', sm: 'mi', both: 'nm+mi' };
+const UNIT_LABELS = { nm: 'nm only', sm: 'mi only', both: 'nm+mi' };
 
 function getUnits() { return getSettings().units || 'both'; }
 
