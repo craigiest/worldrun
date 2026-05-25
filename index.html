@@ -108,6 +108,17 @@
     }
     .icon-btn:active { color: var(--text); }
 
+    /* ── Units toggle chip ── */
+    #units-btn {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .5px;
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 4px 8px;
+      color: var(--accent);
+    }
+
     /* ── Placeholder content ── */
     .placeholder {
       text-align: center;
@@ -277,13 +288,50 @@
 <div id="main-view" class="view">
   <div class="topbar">
     <span class="logo">🌍 WorldRun</span>
-    <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
+    <div style="display:flex;gap:4px;align-items:center">
+      <button class="icon-btn" id="units-btn" title="Toggle units">nm</button>
+      <button class="icon-btn" id="settings-btn" title="Settings">⚙️</button>
+    </div>
   </div>
   <div class="scroll-body">
-    <div class="placeholder">
-      <h1>Dashboard</h1>
-      <p>Step 5 coming soon…</p>
+
+    <!-- Date header -->
+    <div class="card" id="date-card">
+      <div id="date-display" style="font-size:1.4rem;font-weight:700"></div>
+      <div id="doy-display" style="font-size:.9rem;color:var(--muted);margin-top:2px"></div>
     </div>
+
+    <!-- Run entry -->
+    <div class="card">
+      <div class="section-heading">Log a Run</div>
+      <div class="field-group">
+        <div class="field-row">
+          <div style="flex:1">
+            <label class="field-label" for="run-nm">Nautical miles</label>
+            <div class="field-row">
+              <input class="field-input" id="run-nm" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+              <span class="field-unit">nm</span>
+            </div>
+          </div>
+          <div style="flex:1">
+            <label class="field-label" for="run-sm">Statute miles</label>
+            <div class="field-row">
+              <input class="field-input" id="run-sm" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+              <span class="field-unit">sm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" id="add-run-btn">Add Run</button>
+    </div>
+
+    <!-- Stats — filled by renderMain() -->
+    <div id="stats-section"><!-- Step 6 --></div>
+
+    <!-- Progress ring — filled by renderMain() -->
+    <div id="progress-section"><!-- Step 7 --></div>
+
+    <div style="height:24px"></div>
   </div>
 </div>
 
@@ -388,7 +436,50 @@ function showView(id) {
   document.getElementById(id).classList.add('active');
 }
 
-function renderMain() { /* filled in Step 5 */ }
+// ── Date helpers ─────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const ORDINALS = n => {
+  const s = ['th','st','nd','rd'], v = n % 100;
+  return n + (s[(v-20)%10] || s[v] || s[0]);
+};
+
+function renderDateHeader() {
+  const d   = new Date();
+  const doy = dayOfYear(d);
+  document.getElementById('date-display').textContent =
+    `${MONTHS[d.getMonth()]} ${ORDINALS(d.getDate())}, ${d.getFullYear()}`;
+  document.getElementById('doy-display').textContent =
+    `Day ${doy} of the year`;
+}
+
+// ── Run entry ─────────────────────────────────────────────────
+const runNmEl = document.getElementById('run-nm');
+const runSmEl = document.getElementById('run-sm');
+
+runNmEl.addEventListener('input', () => {
+  const v = parseFloat(runNmEl.value);
+  runSmEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+});
+runSmEl.addEventListener('input', () => {
+  const v = parseFloat(runSmEl.value);
+  runNmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+});
+
+document.getElementById('add-run-btn').addEventListener('click', () => {
+  const nm = parseFloat(runNmEl.value);
+  if (isNaN(nm) || nm <= 0) { runNmEl.focus(); return; }
+  addRun(nm);
+  runNmEl.value = '';
+  runSmEl.value = '';
+  renderMain();
+});
+
+function renderMain() {
+  renderDateHeader();
+  renderStats();   // Step 6
+  renderRing();    // Step 7
+}
 
 function init() {
   updateGoalConversions(0);
@@ -531,6 +622,9 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   showView('main-view');
   renderMain();
 });
+
+function renderStats() { /* Step 6 */ }
+function renderRing()  { /* Step 7 */ }
 
 // ── Service worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
