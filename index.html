@@ -476,13 +476,8 @@ function todayISO() {
 }
 
 // ── Derived totals ────────────────────────────────────────────
-// Seeds represent "everything not yet logged in the app."
-// computeAppRuns() tallies only what's in the run log.
-// computeTotals() = seeds + app runs.
-// When the user edits their totals in settings, we back-calculate the
-// seed as (entered total − app runs) so the dashboard stays correct.
-
-function computeAppRuns() {
+function computeTotals() {
+  const seeds = getSeeds();
   const runs  = getRuns();
   const today = new Date();
   const yyyy  = today.getFullYear();
@@ -496,16 +491,10 @@ function computeAppRuns() {
     if (r.date.startsWith(yearPrefix))  nmYear  += r.nm;
     if (r.date.startsWith(monthPrefix)) nmMonth += r.nm;
   }
-  return { nmMonth, nmYear, nmLife };
-}
-
-function computeTotals() {
-  const seeds = getSeeds();
-  const app   = computeAppRuns();
   return {
-    nmMonth: app.nmMonth + (seeds.nmMonth || 0),
-    nmYear:  app.nmYear  + (seeds.nmYear  || 0),
-    nmLife:  app.nmLife  + (seeds.nmLife  || 0)
+    nmMonth: nmMonth + (seeds.nmMonth || 0),
+    nmYear:  nmYear  + (seeds.nmYear  || 0),
+    nmLife:  nmLife  + (seeds.nmLife  || 0)
   };
 }
 
@@ -750,17 +739,13 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   }
   save(KEYS.goal, { nmPerDay: nmDay });
 
-  // Enforce lifetime >= year >= month, then back-calculate seeds so that
-  // seed + app_runs == the total the user entered.
-  const enteredMonth = seedMonth.getNm();
-  const enteredYear  = Math.max(enteredMonth, seedYear.getNm());
-  const enteredLife  = Math.max(enteredYear,  seedLife.getNm());
-  const app = computeAppRuns();
-  save(KEYS.seeds, {
-    nmMonth: Math.max(0, enteredMonth - app.nmMonth),
-    nmYear:  Math.max(0, enteredYear  - app.nmYear),
-    nmLife:  Math.max(0, enteredLife  - app.nmLife)
-  });
+  // Entered totals become the new baseline; run log resets to zero.
+  // Enforce lifetime >= year >= month.
+  const nmMonth = seedMonth.getNm();
+  const nmYear  = Math.max(nmMonth, seedYear.getNm());
+  const nmLife  = Math.max(nmYear,  seedLife.getNm());
+  save(KEYS.seeds, { nmMonth, nmYear, nmLife });
+  save(KEYS.runs, []);
 
   showView('main-view');
   renderMain();
