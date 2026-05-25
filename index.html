@@ -174,12 +174,12 @@
 
     /* ── Section heading ── */
     .section-heading {
-      font-size: .75rem;
+      font-size: .85rem;
       font-weight: 700;
       color: var(--accent);
       text-transform: uppercase;
       letter-spacing: 1.2px;
-      margin: 20px 0 10px;
+      margin: 0 0 10px;
     }
 
     /* ── Goals intro ── */
@@ -301,7 +301,7 @@
           <input class="field-input" id="g-nm-day" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">nm</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-day">—</span> statute miles/day</div>
+        <div class="field-conversion">= <span id="g-sm-day">—</span> mi/day</div>
       </div>
 
       <div class="field-group">
@@ -310,7 +310,7 @@
           <input class="field-input" id="g-nm-month" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
           <span class="field-unit">nm</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-month">—</span> statute miles/month</div>
+        <div class="field-conversion">= <span id="g-sm-month">—</span> mi/month</div>
       </div>
 
       <div class="field-group">
@@ -319,7 +319,7 @@
           <input class="field-input" id="g-nm-year" type="number" min="0" step="1" inputmode="decimal" placeholder="0" />
           <span class="field-unit">nm</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-year">—</span> statute miles/year</div>
+        <div class="field-conversion">= <span id="g-sm-year">—</span> mi/year</div>
       </div>
 
       <div class="field-group">
@@ -328,7 +328,7 @@
           <input class="field-input" id="g-years" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
           <span class="field-unit">yrs</span>
         </div>
-        <div class="field-conversion">Goal: <span style="color:var(--text)">21,600 nm</span> = <span id="g-sm-world">24,856</span> statute miles</div>
+        <div class="field-conversion">Goal: <span style="color:var(--text)">21,600 nm</span> = <span id="g-sm-world">24,856</span> mi</div>
       </div>
     </div>
 
@@ -342,7 +342,7 @@
           <input class="field-input" id="s-nm-month" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">nm</span>
           <input class="field-input" id="s-sm-month" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-          <span class="field-unit">sm</span>
+          <span class="field-unit">mi</span>
         </div>
       </div>
 
@@ -352,7 +352,7 @@
           <input class="field-input" id="s-nm-year" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">nm</span>
           <input class="field-input" id="s-sm-year" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-          <span class="field-unit">sm</span>
+          <span class="field-unit">mi</span>
         </div>
       </div>
 
@@ -362,7 +362,7 @@
           <input class="field-input" id="s-nm-life" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">nm</span>
           <input class="field-input" id="s-sm-life" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-          <span class="field-unit">sm</span>
+          <span class="field-unit">mi</span>
         </div>
       </div>
     </div>
@@ -404,10 +404,10 @@
             </div>
           </div>
           <div style="flex:1">
-            <label class="field-label" for="run-sm">Statute miles</label>
+            <label class="field-label" for="run-sm">Miles (mi)</label>
             <div class="field-row">
               <input class="field-input" id="run-sm" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
-              <span class="field-unit">sm</span>
+              <span class="field-unit">mi</span>
             </div>
           </div>
         </div>
@@ -597,7 +597,12 @@ document.getElementById('settings-btn').addEventListener('click', () => {
 const NM_TO_SM = 1.15078;
 function nmToSm(nm) { return nm * NM_TO_SM; }
 function smToNm(sm) { return sm / NM_TO_SM; }
-function fmt(n, dec = 2) { return isNaN(n) || !isFinite(n) ? '—' : n.toFixed(dec); }
+function fmt(n, dec = 2) {
+  if (isNaN(n) || !isFinite(n)) return '—';
+  const parts = n.toFixed(dec).split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return dec > 0 ? parts.join('.') : parts[0];
+}
 
 // ── Goals page: linked fields ─────────────────────────────────
 const WORLD_NM = 21600;
@@ -720,7 +725,7 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
 
 // ── Unit toggle ───────────────────────────────────────────────
 const UNIT_CYCLE = ['nm', 'sm', 'both'];
-const UNIT_LABELS = { nm: 'nm', sm: 'sm', both: 'nm+sm' };
+const UNIT_LABELS = { nm: 'nm', sm: 'mi', both: 'nm+mi' };
 
 function getUnits() { return getSettings().units || 'both'; }
 
@@ -740,13 +745,13 @@ document.getElementById('units-btn').addEventListener('click', () => {
 
 // ── Unit display helpers ──────────────────────────────────────
 
-function dispNm(nm, dec = 2) { return `${fmt(nm, dec)} nm`; }
-function dispSm(nm, dec = 2) { return `${fmt(nmToSm(nm), dec)} sm`; }
+function dispNm(nm, dec = 2) { return `${fmt(nm, dec)}&thinsp;nm`; }
+function dispSm(nm, dec = 2) { return `${fmt(nmToSm(nm), dec)}&thinsp;mi`; }
 function dispVal(nm, dec = 2) {
   const u = getUnits();
   if (u === 'nm')   return dispNm(nm, dec);
   if (u === 'sm')   return dispSm(nm, dec);
-  return `${fmt(nm, dec)}&thinsp;nm<br>${fmt(nmToSm(nm), dec)}&thinsp;sm`;
+  return `${fmt(nm, dec)}&thinsp;nm<br>${fmt(nmToSm(nm), dec)}&thinsp;mi`;
 }
 
 // ── renderStats ───────────────────────────────────────────────
@@ -762,9 +767,9 @@ function renderStats() {
     const sign = nmDiff >= 0 ? '+' : '−';
     const u    = getUnits();
     let   val;
-    if (u === 'sm')        val = `${sign}${fmt(nmToSm(abs))} sm`;
+    if (u === 'sm')        val = `${sign}${fmt(nmToSm(abs))} mi`;
     else if (u === 'nm')   val = `${sign}${fmt(abs)} nm`;
-    else                   val = `${sign}${fmt(abs)} nm / ${fmt(nmToSm(abs))} sm`;
+    else                   val = `${sign}${fmt(abs)} nm / ${fmt(nmToSm(abs))} mi`;
     const word = nmDiff >= 0 ? 'ahead' : 'behind';
     return `<span class="delta ${cls}">${val} ${word}</span>`;
   }
@@ -842,19 +847,38 @@ function renderStats() {
   `;
 }
 function renderRing() {
-  const goal = load(KEYS.goal);
+  const goal   = load(KEYS.goal);
   const totals = computeTotals();
   const nmLife = totals.nmLife;
   const pct    = Math.min(1, nmLife / WORLD_NM);
   const pctDisp = (pct * 100).toFixed(pct < 0.001 ? 4 : pct < 0.01 ? 3 : pct < 0.1 ? 2 : 1);
 
-  const R   = 90;
-  const cx  = 110;
-  const cy  = 110;
+  const R    = 90;
+  const cx   = 110;
+  const cy   = 110;
   const circ = 2 * Math.PI * R;
   const offset = circ * (1 - pct);
 
   const remaining = Math.max(0, WORLD_NM - nmLife);
+
+  let projRow = '';
+  if (goal && goal.nmPerDay > 0) {
+    if (remaining <= 0) {
+      projRow = `<div class="stat-row">
+        <span class="stat-label">Projected finish</span>
+        <span class="stat-value" style="color:var(--accent2)">Complete!</span>
+      </div>`;
+    } else {
+      const daysLeft   = remaining / goal.nmPerDay;
+      const finishDate = new Date();
+      finishDate.setDate(finishDate.getDate() + Math.ceil(daysLeft));
+      const finishStr  = `${MONTHS[finishDate.getMonth()]} ${finishDate.getDate()}, ${finishDate.getFullYear()}`;
+      projRow = `<div class="stat-row">
+        <span class="stat-label">Projected finish</span>
+        <span class="stat-value">${finishStr}</span>
+      </div>`;
+    }
+  }
 
   document.getElementById('progress-section').innerHTML = `
     <div class="card">
@@ -885,6 +909,7 @@ function renderRing() {
           </div>
         </div>
       </div>
+      ${projRow}
     </div>
   `;
 
