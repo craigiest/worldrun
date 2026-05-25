@@ -182,6 +182,29 @@
       margin: 0 0 10px;
     }
 
+    /* ── Unit option buttons ── */
+    .unit-opts { display: flex; flex-direction: column; gap: 8px; }
+    .unit-opt {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      background: var(--surface2);
+      border: 2px solid transparent;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .15s, background .15s;
+    }
+    .unit-opt:active { opacity: .8; }
+    .unit-opt.selected {
+      border-color: var(--accent);
+      background: rgba(0,194,255,.08);
+    }
+    .unit-opt-title { font-size: .95rem; font-weight: 600; color: var(--text); }
+    .unit-opt-sub   { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+    .unit-opt.selected .unit-opt-title { color: var(--accent); }
+
     /* ── Goals intro ── */
     .goals-intro {
       font-size: .95rem;
@@ -367,6 +390,24 @@
           <input class="field-input" id="s-sm-life" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">mi</span>
         </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-heading">Display Units</div>
+      <div class="unit-opts">
+        <button class="unit-opt" data-units="nm">
+          <span class="unit-opt-title">Nautical miles only</span>
+          <span class="unit-opt-sub">All distances shown in nm</span>
+        </button>
+        <button class="unit-opt" data-units="sm">
+          <span class="unit-opt-title">Statute miles only</span>
+          <span class="unit-opt-sub">All distances shown in mi</span>
+        </button>
+        <button class="unit-opt" data-units="both">
+          <span class="unit-opt-title">Show both</span>
+          <span class="unit-opt-sub">nm and mi displayed together</span>
+        </button>
       </div>
     </div>
 
@@ -681,6 +722,21 @@ gNmYear.addEventListener('input',  () => { const v = parseFloat(gNmYear.value); 
 gMiYear.addEventListener('input',  () => { const v = parseFloat(gMiYear.value);  if (v > 0) applyDay(smToNm(v)/DAYS_YEAR, gMiYear);  });
 gYears.addEventListener('input',   () => { const v = parseFloat(gYears.value);   if (v > 0) applyDay(WORLD_NM/(v*DAYS_YEAR),gYears); });
 
+// ── Settings page unit selector ───────────────────────────────
+function refreshUnitOpts() {
+  const cur = getUnits();
+  document.querySelectorAll('.unit-opt').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.units === cur);
+  });
+}
+
+document.querySelectorAll('.unit-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    setUnits(btn.dataset.units);
+    refreshUnitOpts();
+  });
+});
+
 function goalsPageLoad() {
   const goal  = load(KEYS.goal);
   const seeds = load(KEYS.seeds);
@@ -694,6 +750,7 @@ function goalsPageLoad() {
   seedYear.setNm(totals.nmYear);
   seedLife.setNm(totals.nmLife);
   document.getElementById('g-sm-world').textContent = fmt(nmToSm(WORLD_NM), 0);
+  refreshUnitOpts();
 }
 
 // ── Goals page: seed inputs (nm ↔ sm pairs) ──────────────────
