@@ -114,6 +114,69 @@
       color: var(--muted);
       padding: 40px 20px;
     }
+
+    /* ── Form fields ── */
+    .field-group { margin-bottom: 14px; }
+    .field-label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      margin-bottom: 6px;
+    }
+    .field-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .field-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1.5px solid transparent;
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 500;
+      padding: 10px 12px;
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+      -webkit-appearance: none;
+    }
+    .field-input:focus { border-color: var(--accent); }
+    .field-unit {
+      font-size: .8rem;
+      color: var(--muted);
+      white-space: nowrap;
+      min-width: 28px;
+    }
+    .field-conversion {
+      font-size: .8rem;
+      color: var(--muted);
+      margin-top: 4px;
+      padding-left: 2px;
+    }
+    .field-conversion span { color: var(--accent2); font-weight: 500; }
+
+    /* ── Section heading ── */
+    .section-heading {
+      font-size: .75rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      margin: 20px 0 10px;
+    }
+
+    /* ── Goals intro ── */
+    .goals-intro {
+      font-size: .95rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -126,10 +189,54 @@
     <span class="logo">🌍 WorldRun</span>
   </div>
   <div class="scroll-body">
-    <div class="placeholder">
-      <h1>Goals</h1>
-      <p>Step 2 coming soon…</p>
+    <p class="goals-intro">Set your running goal. Changing any field recalculates the others. 21,600 nm = one lap around Earth.</p>
+
+    <div class="card">
+      <div class="section-heading">Pace Goal</div>
+
+      <div class="field-group">
+        <label class="field-label" for="g-nm-day">Nautical miles per day</label>
+        <div class="field-row">
+          <input class="field-input" id="g-nm-day" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">nm</span>
+        </div>
+        <div class="field-conversion">= <span id="g-sm-day">—</span> statute miles/day</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="g-nm-month">Nautical miles per month</label>
+        <div class="field-row">
+          <input class="field-input" id="g-nm-month" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
+          <span class="field-unit">nm</span>
+        </div>
+        <div class="field-conversion">= <span id="g-sm-month">—</span> statute miles/month</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="g-nm-year">Nautical miles per year</label>
+        <div class="field-row">
+          <input class="field-input" id="g-nm-year" type="number" min="0" step="1" inputmode="decimal" placeholder="0" />
+          <span class="field-unit">nm</span>
+        </div>
+        <div class="field-conversion">= <span id="g-sm-year">—</span> statute miles/year</div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="g-years">Years to run around the world</label>
+        <div class="field-row">
+          <input class="field-input" id="g-years" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
+          <span class="field-unit">yrs</span>
+        </div>
+        <div class="field-conversion">Goal: <span style="color:var(--text)">21,600 nm</span> = <span id="g-sm-world">24,856</span> statute miles</div>
+      </div>
     </div>
+
+    <div class="card" id="seeds-card">
+      <div class="section-heading">Step 3 — Previous mileage coming soon…</div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="goals-ok-btn">Save &amp; Start Running</button>
+    <div style="height:24px"></div>
   </div>
 </div>
 
@@ -166,16 +273,113 @@ function showView(id) {
   document.getElementById(id).classList.add('active');
 }
 
+function renderMain() { /* filled in Step 5 */ }
+
 function init() {
+  updateGoalConversions(0);
   const goal = load(KEYS.goal);
   if (!goal) {
+    goalsPageLoad();
     showView('goals-view');
   } else {
     showView('main-view');
+    renderMain();
   }
 }
 
-document.getElementById('settings-btn').addEventListener('click', () => showView('goals-view'));
+document.getElementById('settings-btn').addEventListener('click', () => {
+  goalsPageLoad();
+  showView('goals-view');
+});
+
+// ── Unit conversion ───────────────────────────────────────────
+const NM_TO_SM = 1.15078;
+function nmToSm(nm) { return nm * NM_TO_SM; }
+function smToNm(sm) { return sm / NM_TO_SM; }
+function fmt(n, dec = 2) { return isNaN(n) || !isFinite(n) ? '—' : n.toFixed(dec); }
+
+// ── Goals page: linked fields ─────────────────────────────────
+const WORLD_NM = 21600;
+const DAYS_YEAR = 360;
+const DAYS_MONTH = 30;
+
+const gNmDay   = document.getElementById('g-nm-day');
+const gNmMonth = document.getElementById('g-nm-month');
+const gNmYear  = document.getElementById('g-nm-year');
+const gYears   = document.getElementById('g-years');
+
+function updateGoalConversions(nmDay) {
+  const nm = parseFloat(nmDay);
+  document.getElementById('g-sm-day').textContent   = isNaN(nm) ? '—' : fmt(nmToSm(nm));
+  document.getElementById('g-sm-month').textContent = isNaN(nm) ? '—' : fmt(nmToSm(nm * DAYS_MONTH));
+  document.getElementById('g-sm-year').textContent  = isNaN(nm) ? '—' : fmt(nmToSm(nm * DAYS_YEAR), 0);
+  document.getElementById('g-sm-world').textContent = fmt(nmToSm(WORLD_NM), 0);
+}
+
+function deriveFromDay(nmDay) {
+  const nm = parseFloat(nmDay);
+  if (isNaN(nm) || nm <= 0) return;
+  gNmMonth.value = fmt(nm * DAYS_MONTH);
+  gNmYear.value  = fmt(nm * DAYS_YEAR, 0);
+  gYears.value   = fmt(WORLD_NM / (nm * DAYS_YEAR), 2);
+  updateGoalConversions(nm);
+}
+
+gNmDay.addEventListener('input', () => deriveFromDay(gNmDay.value));
+
+gNmMonth.addEventListener('input', () => {
+  const nm = parseFloat(gNmMonth.value);
+  if (isNaN(nm) || nm <= 0) return;
+  const day = nm / DAYS_MONTH;
+  gNmDay.value  = fmt(day);
+  gNmYear.value = fmt(day * DAYS_YEAR, 0);
+  gYears.value  = fmt(WORLD_NM / (day * DAYS_YEAR), 2);
+  updateGoalConversions(day);
+});
+
+gNmYear.addEventListener('input', () => {
+  const nm = parseFloat(gNmYear.value);
+  if (isNaN(nm) || nm <= 0) return;
+  const day = nm / DAYS_YEAR;
+  gNmDay.value   = fmt(day);
+  gNmMonth.value = fmt(day * DAYS_MONTH);
+  gYears.value   = fmt(WORLD_NM / nm, 2);
+  updateGoalConversions(day);
+});
+
+gYears.addEventListener('input', () => {
+  const yrs = parseFloat(gYears.value);
+  if (isNaN(yrs) || yrs <= 0) return;
+  const nmYear = WORLD_NM / yrs;
+  const day    = nmYear / DAYS_YEAR;
+  gNmDay.value   = fmt(day);
+  gNmMonth.value = fmt(day * DAYS_MONTH);
+  gNmYear.value  = fmt(nmYear, 0);
+  updateGoalConversions(day);
+});
+
+function goalsPageLoad() {
+  const goal = load(KEYS.goal);
+  if (goal && goal.nmPerDay > 0) {
+    gNmDay.value   = fmt(goal.nmPerDay);
+    gNmMonth.value = fmt(goal.nmPerDay * DAYS_MONTH);
+    gNmYear.value  = fmt(goal.nmPerDay * DAYS_YEAR, 0);
+    gYears.value   = fmt(WORLD_NM / (goal.nmPerDay * DAYS_YEAR), 2);
+    updateGoalConversions(goal.nmPerDay);
+  }
+  updateGoalConversions(parseFloat(gNmDay.value) || 0);
+}
+
+document.getElementById('goals-ok-btn').addEventListener('click', () => {
+  const nmDay = parseFloat(gNmDay.value);
+  if (isNaN(nmDay) || nmDay <= 0) {
+    gNmDay.focus();
+    return;
+  }
+  save(KEYS.goal, { nmPerDay: nmDay });
+  showView('main-view');
+  renderMain();
+});
 
 // ── Service worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
