@@ -232,7 +232,38 @@
     </div>
 
     <div class="card" id="seeds-card">
-      <div class="section-heading">Step 3 — Previous mileage coming soon…</div>
+      <div class="section-heading">Previous Mileage</div>
+      <p class="goals-intro" style="margin-bottom:14px">Miles already run before using this app. Enter either unit — the other updates automatically.</p>
+
+      <div class="field-group">
+        <label class="field-label">This month so far</label>
+        <div class="field-row">
+          <input class="field-input" id="s-nm-month" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">nm</span>
+          <input class="field-input" id="s-sm-month" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">sm</span>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">This year so far</label>
+        <div class="field-row">
+          <input class="field-input" id="s-nm-year" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">nm</span>
+          <input class="field-input" id="s-sm-year" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">sm</span>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label class="field-label">Lifetime total</label>
+        <div class="field-row">
+          <input class="field-input" id="s-nm-life" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">nm</span>
+          <input class="field-input" id="s-sm-life" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">sm</span>
+        </div>
+      </div>
     </div>
 
     <button class="btn btn-primary btn-full" id="goals-ok-btn">Save &amp; Start Running</button>
@@ -359,7 +390,8 @@ gYears.addEventListener('input', () => {
 });
 
 function goalsPageLoad() {
-  const goal = load(KEYS.goal);
+  const goal  = load(KEYS.goal);
+  const seeds = load(KEYS.seeds);
   if (goal && goal.nmPerDay > 0) {
     gNmDay.value   = fmt(goal.nmPerDay);
     gNmMonth.value = fmt(goal.nmPerDay * DAYS_MONTH);
@@ -367,8 +399,38 @@ function goalsPageLoad() {
     gYears.value   = fmt(WORLD_NM / (goal.nmPerDay * DAYS_YEAR), 2);
     updateGoalConversions(goal.nmPerDay);
   }
+  if (seeds) {
+    seedMonth.setNm(seeds.nmMonth || 0);
+    seedYear.setNm(seeds.nmYear   || 0);
+    seedLife.setNm(seeds.nmLife   || 0);
+  }
   updateGoalConversions(parseFloat(gNmDay.value) || 0);
 }
+
+// ── Goals page: seed inputs (nm ↔ sm pairs) ──────────────────
+function makeSeedPair(nmId, smId) {
+  const nmEl = document.getElementById(nmId);
+  const smEl = document.getElementById(smId);
+  nmEl.addEventListener('input', () => {
+    const v = parseFloat(nmEl.value);
+    smEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+  });
+  smEl.addEventListener('input', () => {
+    const v = parseFloat(smEl.value);
+    nmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+  });
+  return {
+    getNm: () => parseFloat(nmEl.value) || 0,
+    setNm: (nm) => {
+      nmEl.value = nm > 0 ? fmt(nm) : '';
+      smEl.value = nm > 0 ? fmt(nmToSm(nm)) : '';
+    }
+  };
+}
+
+const seedMonth = makeSeedPair('s-nm-month', 's-sm-month');
+const seedYear  = makeSeedPair('s-nm-year',  's-sm-year');
+const seedLife  = makeSeedPair('s-nm-life',  's-sm-life');
 
 document.getElementById('goals-ok-btn').addEventListener('click', () => {
   const nmDay = parseFloat(gNmDay.value);
@@ -377,6 +439,11 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
     return;
   }
   save(KEYS.goal, { nmPerDay: nmDay });
+  save(KEYS.seeds, {
+    nmMonth: seedMonth.getNm(),
+    nmYear:  seedYear.getNm(),
+    nmLife:  seedLife.getNm()
+  });
   showView('main-view');
   renderMain();
 });
