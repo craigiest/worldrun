@@ -552,9 +552,10 @@ document.getElementById('add-run-btn').addEventListener('click', () => {
 });
 
 function renderMain() {
+  document.getElementById('units-btn').textContent = UNIT_LABELS[getUnits()];
   renderDateHeader();
-  renderStats();   // Step 6
-  renderRing();    // Step 7
+  renderStats();
+  renderRing();
 }
 
 function init() {
@@ -699,8 +700,27 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   renderMain();
 });
 
+// ── Unit toggle ───────────────────────────────────────────────
+const UNIT_CYCLE = ['nm', 'sm', 'both'];
+const UNIT_LABELS = { nm: 'nm', sm: 'sm', both: 'nm+sm' };
+
+function getUnits() { return getSettings().units || 'both'; }
+
+function setUnits(u) {
+  const s = getSettings();
+  s.units = u;
+  save(KEYS.settings, s);
+  document.getElementById('units-btn').textContent = UNIT_LABELS[u];
+  renderMain();
+}
+
+document.getElementById('units-btn').addEventListener('click', () => {
+  const cur = getUnits();
+  const next = UNIT_CYCLE[(UNIT_CYCLE.indexOf(cur) + 1) % UNIT_CYCLE.length];
+  setUnits(next);
+});
+
 // ── Unit display helpers ──────────────────────────────────────
-function getUnits() { return getSettings().units; }
 
 function dispNm(nm, dec = 2) { return `${fmt(nm, dec)} nm`; }
 function dispSm(nm, dec = 2) { return `${fmt(nmToSm(nm), dec)} sm`; }
