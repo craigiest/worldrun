@@ -298,6 +298,90 @@ function save(key, val) {
   localStorage.setItem(key, JSON.stringify(val));
 }
 
+// ── Run log ───────────────────────────────────────────────────
+function getRuns()      { return load(KEYS.runs) || []; }
+function getSeeds()     { return load(KEYS.seeds) || { nmMonth: 0, nmYear: 0, nmLife: 0 }; }
+function getSettings()  { return load(KEYS.settings) || { units: 'both' }; }
+
+function addRun(nm) {
+  const runs = getRuns();
+  runs.push({ date: todayISO(), nm });
+  save(KEYS.runs, runs);
+}
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ── Derived totals ────────────────────────────────────────────
+// Totals are always computed from the run log + seeds so editing seeds
+// stays accurate without corrupting run history.
+
+function computeTotals() {
+  const runs  = getRuns();
+  const seeds = getSeeds();
+  const today = new Date();
+  const yyyy  = today.getFullYear();
+  const mm    = String(today.getMonth() + 1).padStart(2, '0');
+  const monthPrefix = `${yyyy}-${mm}`;
+  const yearPrefix  = `${yyyy}`;
+
+  let nmMonth = 0, nmYear = 0, nmLife = 0;
+  for (const r of runs) {
+    nmLife += r.nm;
+    if (r.date.startsWith(yearPrefix))  nmYear  += r.nm;
+    if (r.date.startsWith(monthPrefix)) nmMonth += r.nm;
+  }
+
+  return {
+    nmMonth: nmMonth + (seeds.nmMonth || 0),
+    nmYear:  nmYear  + (seeds.nmYear  || 0),
+    nmLife:  nmLife  + (seeds.nmLife  || 0)
+  };
+}
+
+// ── Pace calculations ─────────────────────────────────────────
+function daysInMonth(date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff  = date - start;
+  return Math.floor(diff / 86400000);
+}
+
+function computePace(goal) {
+  const today     = new Date();
+  const dom       = today.getDate();
+  const doy       = dayOfYear(today);
+  const daysInM   = daysInMonth(today);
+
+  const nmPerDay  = goal.nmPerDay;
+  const monthGoal = nmPerDay * daysInM;
+  const yearGoal  = nmPerDay * DAYS_YEAR;
+
+  const expectedMonth = nmPerDay * dom;
+  const expectedYear  = nmPerDay * doy;
+
+  const totals = computeTotals();
+
+  return {
+    totals,
+    monthGoal,
+    yearGoal,
+    expectedMonth,
+    expectedYear,
+    aheadMonth:    totals.nmMonth - expectedMonth,
+    aheadYear:     totals.nmYear  - expectedYear,
+    remainMonth:   Math.max(0, monthGoal - totals.nmMonth),
+    remainYear:    Math.max(0, yearGoal  - totals.nmYear),
+    doy,
+    daysInM
+  };
+}
+
 // ── Router ────────────────────────────────────────────────────
 function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
