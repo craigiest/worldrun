@@ -960,6 +960,11 @@ convMiEl.addEventListener('input', () => {
   convNmEl.value = isNaN(v) ? '' : fmtInput(smToNm(v));
 });
 
+// ── Select-all on focus for every number input ────────────────
+document.addEventListener('focus', e => {
+  if (e.target.matches('input[type="number"]')) e.target.select();
+}, true);
+
 // ── Service worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
