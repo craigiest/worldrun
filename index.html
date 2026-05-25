@@ -296,30 +296,33 @@
       <div class="section-heading">Pace Goal</div>
 
       <div class="field-group">
-        <label class="field-label" for="g-nm-day">Nautical miles per day</label>
+        <label class="field-label">Per day</label>
         <div class="field-row">
           <input class="field-input" id="g-nm-day" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           <span class="field-unit">nm</span>
+          <input class="field-input" id="g-mi-day" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
+          <span class="field-unit">mi</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-day">—</span> mi/day</div>
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="g-nm-month">Nautical miles per month</label>
+        <label class="field-label">Per month</label>
         <div class="field-row">
           <input class="field-input" id="g-nm-month" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
           <span class="field-unit">nm</span>
+          <input class="field-input" id="g-mi-month" type="number" min="0" step="0.1" inputmode="decimal" placeholder="0.0" />
+          <span class="field-unit">mi</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-month">—</span> mi/month</div>
       </div>
 
       <div class="field-group">
-        <label class="field-label" for="g-nm-year">Nautical miles per year</label>
+        <label class="field-label">Per year</label>
         <div class="field-row">
           <input class="field-input" id="g-nm-year" type="number" min="0" step="1" inputmode="decimal" placeholder="0" />
           <span class="field-unit">nm</span>
+          <input class="field-input" id="g-mi-year" type="number" min="0" step="1" inputmode="decimal" placeholder="0" />
+          <span class="field-unit">mi</span>
         </div>
-        <div class="field-conversion">= <span id="g-sm-year">—</span> mi/year</div>
       </div>
 
       <div class="field-group">
@@ -608,7 +611,7 @@ function renderMain() {
 
 function init() {
   checkRollover();
-  updateGoalConversions(0);
+  document.getElementById('g-sm-world').textContent = fmt(nmToSm(WORLD_NM), 0);
   const goal = load(KEYS.goal);
   if (!goal) {
     goalsPageLoad();
@@ -645,69 +648,44 @@ const DAYS_YEAR = 360;
 const DAYS_MONTH = 30;
 
 const gNmDay   = document.getElementById('g-nm-day');
+const gMiDay   = document.getElementById('g-mi-day');
 const gNmMonth = document.getElementById('g-nm-month');
+const gMiMonth = document.getElementById('g-mi-month');
 const gNmYear  = document.getElementById('g-nm-year');
+const gMiYear  = document.getElementById('g-mi-year');
 const gYears   = document.getElementById('g-years');
 
-function updateGoalConversions(nmDay) {
-  const nm = parseFloat(nmDay);
-  document.getElementById('g-sm-day').textContent   = isNaN(nm) ? '—' : fmt(nmToSm(nm));
-  document.getElementById('g-sm-month').textContent = isNaN(nm) ? '—' : fmt(nmToSm(nm * DAYS_MONTH));
-  document.getElementById('g-sm-year').textContent  = isNaN(nm) ? '—' : fmt(nmToSm(nm * DAYS_YEAR), 0);
+// Update all 7 goal fields from a daily nm rate, skipping the field
+// currently being typed so mid-entry values aren't clobbered.
+function applyDay(nmDay, skipEl) {
+  const pairs = [
+    [gNmDay,   nmDay],
+    [gMiDay,   nmToSm(nmDay)],
+    [gNmMonth, nmDay * DAYS_MONTH],
+    [gMiMonth, nmToSm(nmDay * DAYS_MONTH)],
+    [gNmYear,  nmDay * DAYS_YEAR],
+    [gMiYear,  nmToSm(nmDay * DAYS_YEAR)],
+    [gYears,   WORLD_NM / (nmDay * DAYS_YEAR)]
+  ];
+  for (const [el, val] of pairs) {
+    if (el !== skipEl) el.value = fmtInput(val);
+  }
   document.getElementById('g-sm-world').textContent = fmt(nmToSm(WORLD_NM), 0);
 }
 
-function deriveFromDay(nmDay) {
-  const nm = parseFloat(nmDay);
-  if (isNaN(nm) || nm <= 0) return;
-  gNmMonth.value = fmtInput(nm * DAYS_MONTH);
-  gNmYear.value  = fmtInput(nm * DAYS_YEAR, 0);
-  gYears.value   = fmtInput(WORLD_NM / (nm * DAYS_YEAR));
-  updateGoalConversions(nm);
-}
-
-gNmDay.addEventListener('input', () => deriveFromDay(gNmDay.value));
-
-gNmMonth.addEventListener('input', () => {
-  const nm = parseFloat(gNmMonth.value);
-  if (isNaN(nm) || nm <= 0) return;
-  const day = nm / DAYS_MONTH;
-  gNmDay.value  = fmtInput(day);
-  gNmYear.value = fmtInput(day * DAYS_YEAR, 0);
-  gYears.value  = fmtInput(WORLD_NM / (day * DAYS_YEAR));
-  updateGoalConversions(day);
-});
-
-gNmYear.addEventListener('input', () => {
-  const nm = parseFloat(gNmYear.value);
-  if (isNaN(nm) || nm <= 0) return;
-  const day = nm / DAYS_YEAR;
-  gNmDay.value   = fmtInput(day);
-  gNmMonth.value = fmtInput(day * DAYS_MONTH);
-  gYears.value   = fmtInput(WORLD_NM / nm);
-  updateGoalConversions(day);
-});
-
-gYears.addEventListener('input', () => {
-  const yrs = parseFloat(gYears.value);
-  if (isNaN(yrs) || yrs <= 0) return;
-  const nmYear = WORLD_NM / yrs;
-  const day    = nmYear / DAYS_YEAR;
-  gNmDay.value   = fmtInput(day);
-  gNmMonth.value = fmtInput(day * DAYS_MONTH);
-  gNmYear.value  = fmtInput(nmYear, 0);
-  updateGoalConversions(day);
-});
+gNmDay.addEventListener('input',   () => { const v = parseFloat(gNmDay.value);   if (v > 0) applyDay(v,                   gNmDay);   });
+gMiDay.addEventListener('input',   () => { const v = parseFloat(gMiDay.value);   if (v > 0) applyDay(smToNm(v),           gMiDay);   });
+gNmMonth.addEventListener('input', () => { const v = parseFloat(gNmMonth.value); if (v > 0) applyDay(v / DAYS_MONTH,      gNmMonth); });
+gMiMonth.addEventListener('input', () => { const v = parseFloat(gMiMonth.value); if (v > 0) applyDay(smToNm(v)/DAYS_MONTH,gMiMonth); });
+gNmYear.addEventListener('input',  () => { const v = parseFloat(gNmYear.value);  if (v > 0) applyDay(v / DAYS_YEAR,       gNmYear);  });
+gMiYear.addEventListener('input',  () => { const v = parseFloat(gMiYear.value);  if (v > 0) applyDay(smToNm(v)/DAYS_YEAR, gMiYear);  });
+gYears.addEventListener('input',   () => { const v = parseFloat(gYears.value);   if (v > 0) applyDay(WORLD_NM/(v*DAYS_YEAR),gYears); });
 
 function goalsPageLoad() {
   const goal  = load(KEYS.goal);
   const seeds = load(KEYS.seeds);
   if (goal && goal.nmPerDay > 0) {
-    gNmDay.value   = fmtInput(goal.nmPerDay);
-    gNmMonth.value = fmtInput(goal.nmPerDay * DAYS_MONTH);
-    gNmYear.value  = fmtInput(goal.nmPerDay * DAYS_YEAR, 0);
-    gYears.value   = fmtInput(WORLD_NM / (goal.nmPerDay * DAYS_YEAR));
-    updateGoalConversions(goal.nmPerDay);
+    applyDay(goal.nmPerDay, null);
   }
   // Show the user their actual current totals so they edit the final
   // number they want to see, not the raw seed offset.
@@ -715,7 +693,7 @@ function goalsPageLoad() {
   seedMonth.setNm(totals.nmMonth);
   seedYear.setNm(totals.nmYear);
   seedLife.setNm(totals.nmLife);
-  updateGoalConversions(parseFloat(gNmDay.value) || 0);
+  document.getElementById('g-sm-world').textContent = fmt(nmToSm(WORLD_NM), 0);
 }
 
 // ── Goals page: seed inputs (nm ↔ sm pairs) ──────────────────
