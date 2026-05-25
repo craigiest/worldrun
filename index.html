@@ -333,8 +333,8 @@
     </div>
 
     <div class="card" id="seeds-card">
-      <div class="section-heading">Previous Mileage</div>
-      <p class="goals-intro" style="margin-bottom:14px">Miles already run before using this app. Enter either unit — the other updates automatically.</p>
+      <div class="section-heading">Running Totals</div>
+      <p class="goals-intro" style="margin-bottom:14px">Your actual totals to date. Runs logged in this app are included automatically — enter the number you want to see on the dashboard.</p>
 
       <div class="field-group">
         <label class="field-label">This month so far</label>
@@ -476,12 +476,14 @@ function todayISO() {
 }
 
 // ── Derived totals ────────────────────────────────────────────
-// Totals are always computed from the run log + seeds so editing seeds
-// stays accurate without corrupting run history.
+// Seeds represent "everything not yet logged in the app."
+// computeAppRuns() tallies only what's in the run log.
+// computeTotals() = seeds + app runs.
+// When the user edits their totals in settings, we back-calculate the
+// seed as (entered total − app runs) so the dashboard stays correct.
 
-function computeTotals() {
+function computeAppRuns() {
   const runs  = getRuns();
-  const seeds = getSeeds();
   const today = new Date();
   const yyyy  = today.getFullYear();
   const mm    = String(today.getMonth() + 1).padStart(2, '0');
@@ -494,11 +496,16 @@ function computeTotals() {
     if (r.date.startsWith(yearPrefix))  nmYear  += r.nm;
     if (r.date.startsWith(monthPrefix)) nmMonth += r.nm;
   }
+  return { nmMonth, nmYear, nmLife };
+}
 
+function computeTotals() {
+  const seeds = getSeeds();
+  const app   = computeAppRuns();
   return {
-    nmMonth: nmMonth + (seeds.nmMonth || 0),
-    nmYear:  nmYear  + (seeds.nmYear  || 0),
-    nmLife:  nmLife  + (seeds.nmLife  || 0)
+    nmMonth: app.nmMonth + (seeds.nmMonth || 0),
+    nmYear:  app.nmYear  + (seeds.nmYear  || 0),
+    nmLife:  app.nmLife  + (seeds.nmLife  || 0)
   };
 }
 
@@ -701,11 +708,12 @@ function goalsPageLoad() {
     gYears.value   = fmtInput(WORLD_NM / (goal.nmPerDay * DAYS_YEAR));
     updateGoalConversions(goal.nmPerDay);
   }
-  if (seeds) {
-    seedMonth.setNm(seeds.nmMonth || 0);
-    seedYear.setNm(seeds.nmYear   || 0);
-    seedLife.setNm(seeds.nmLife   || 0);
-  }
+  // Show the user their actual current totals so they edit the final
+  // number they want to see, not the raw seed offset.
+  const totals = computeTotals();
+  seedMonth.setNm(totals.nmMonth);
+  seedYear.setNm(totals.nmYear);
+  seedLife.setNm(totals.nmLife);
   updateGoalConversions(parseFloat(gNmDay.value) || 0);
 }
 
@@ -742,11 +750,17 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   }
   save(KEYS.goal, { nmPerDay: nmDay });
 
-  // Enforce lifetime >= year >= month so totals are always self-consistent
-  const nmMonth = seedMonth.getNm();
-  const nmYear  = Math.max(nmMonth, seedYear.getNm());
-  const nmLife  = Math.max(nmYear,  seedLife.getNm());
-  save(KEYS.seeds, { nmMonth, nmYear, nmLife });
+  // Enforce lifetime >= year >= month, then back-calculate seeds so that
+  // seed + app_runs == the total the user entered.
+  const enteredMonth = seedMonth.getNm();
+  const enteredYear  = Math.max(enteredMonth, seedYear.getNm());
+  const enteredLife  = Math.max(enteredYear,  seedLife.getNm());
+  const app = computeAppRuns();
+  save(KEYS.seeds, {
+    nmMonth: Math.max(0, enteredMonth - app.nmMonth),
+    nmYear:  Math.max(0, enteredYear  - app.nmYear),
+    nmLife:  Math.max(0, enteredLife  - app.nmLife)
+  });
 
   showView('main-view');
   renderMain();
