@@ -476,14 +476,23 @@ function todayISO() {
 }
 
 // ── Derived totals ────────────────────────────────────────────
+// Seeds store a monthKey and yearKey so their period-specific values
+// are only applied when the current period matches. On rollover the
+// seed contribution for that period drops to 0 automatically.
+function currentPeriodKeys() {
+  const d = new Date();
+  return {
+    monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+    yearKey:  String(d.getFullYear())
+  };
+}
+
 function computeTotals() {
-  const seeds = getSeeds();
-  const runs  = getRuns();
-  const today = new Date();
-  const yyyy  = today.getFullYear();
-  const mm    = String(today.getMonth() + 1).padStart(2, '0');
-  const monthPrefix = `${yyyy}-${mm}`;
-  const yearPrefix  = `${yyyy}`;
+  const seeds  = getSeeds();
+  const runs   = getRuns();
+  const { monthKey, yearKey } = currentPeriodKeys();
+  const monthPrefix = monthKey;
+  const yearPrefix  = yearKey;
 
   let nmMonth = 0, nmYear = 0, nmLife = 0;
   for (const r of runs) {
@@ -491,10 +500,16 @@ function computeTotals() {
     if (r.date.startsWith(yearPrefix))  nmYear  += r.nm;
     if (r.date.startsWith(monthPrefix)) nmMonth += r.nm;
   }
+
+  // Seed period values only count if they were saved in the current period.
+  // Missing key (old data) is treated as matching to preserve existing data.
+  const seedMonth = (!seeds.monthKey || seeds.monthKey === monthKey) ? (seeds.nmMonth || 0) : 0;
+  const seedYear  = (!seeds.yearKey  || seeds.yearKey  === yearKey)  ? (seeds.nmYear  || 0) : 0;
+
   return {
-    nmMonth: nmMonth + (seeds.nmMonth || 0),
-    nmYear:  nmYear  + (seeds.nmYear  || 0),
-    nmLife:  nmLife  + (seeds.nmLife  || 0)
+    nmMonth: nmMonth + seedMonth,
+    nmYear:  nmYear  + seedYear,
+    nmLife:  nmLife  + (seeds.nmLife || 0)
   };
 }
 
@@ -744,7 +759,8 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
   const nmMonth = seedMonth.getNm();
   const nmYear  = Math.max(nmMonth, seedYear.getNm());
   const nmLife  = Math.max(nmYear,  seedLife.getNm());
-  save(KEYS.seeds, { nmMonth, nmYear, nmLife });
+  const { monthKey, yearKey } = currentPeriodKeys();
+  save(KEYS.seeds, { nmMonth, nmYear, nmLife, monthKey, yearKey });
   save(KEYS.runs, []);
 
   showView('main-view');
