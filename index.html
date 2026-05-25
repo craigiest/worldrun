@@ -572,11 +572,11 @@ const runSmEl = document.getElementById('run-sm');
 
 runNmEl.addEventListener('input', () => {
   const v = parseFloat(runNmEl.value);
-  runSmEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+  runSmEl.value = isNaN(v) ? '' : fmtInput(nmToSm(v));
 });
 runSmEl.addEventListener('input', () => {
   const v = parseFloat(runSmEl.value);
-  runNmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+  runNmEl.value = isNaN(v) ? '' : fmtInput(smToNm(v));
 });
 
 document.getElementById('add-run-btn').addEventListener('click', () => {
@@ -626,6 +626,10 @@ function fmt(n, dec = 2) {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   return dec > 0 ? parts.join('.') : parts[0];
 }
+// Plain decimal for <input type="number"> values — browsers reject commas
+function fmtInput(n, dec = 2) {
+  return isNaN(n) || !isFinite(n) ? '' : n.toFixed(dec);
+}
 
 // ── Goals page: linked fields ─────────────────────────────────
 const WORLD_NM = 21600;
@@ -648,9 +652,9 @@ function updateGoalConversions(nmDay) {
 function deriveFromDay(nmDay) {
   const nm = parseFloat(nmDay);
   if (isNaN(nm) || nm <= 0) return;
-  gNmMonth.value = fmt(nm * DAYS_MONTH);
-  gNmYear.value  = fmt(nm * DAYS_YEAR, 0);
-  gYears.value   = fmt(WORLD_NM / (nm * DAYS_YEAR), 2);
+  gNmMonth.value = fmtInput(nm * DAYS_MONTH);
+  gNmYear.value  = fmtInput(nm * DAYS_YEAR, 0);
+  gYears.value   = fmtInput(WORLD_NM / (nm * DAYS_YEAR));
   updateGoalConversions(nm);
 }
 
@@ -660,9 +664,9 @@ gNmMonth.addEventListener('input', () => {
   const nm = parseFloat(gNmMonth.value);
   if (isNaN(nm) || nm <= 0) return;
   const day = nm / DAYS_MONTH;
-  gNmDay.value  = fmt(day);
-  gNmYear.value = fmt(day * DAYS_YEAR, 0);
-  gYears.value  = fmt(WORLD_NM / (day * DAYS_YEAR), 2);
+  gNmDay.value  = fmtInput(day);
+  gNmYear.value = fmtInput(day * DAYS_YEAR, 0);
+  gYears.value  = fmtInput(WORLD_NM / (day * DAYS_YEAR));
   updateGoalConversions(day);
 });
 
@@ -670,9 +674,9 @@ gNmYear.addEventListener('input', () => {
   const nm = parseFloat(gNmYear.value);
   if (isNaN(nm) || nm <= 0) return;
   const day = nm / DAYS_YEAR;
-  gNmDay.value   = fmt(day);
-  gNmMonth.value = fmt(day * DAYS_MONTH);
-  gYears.value   = fmt(WORLD_NM / nm, 2);
+  gNmDay.value   = fmtInput(day);
+  gNmMonth.value = fmtInput(day * DAYS_MONTH);
+  gYears.value   = fmtInput(WORLD_NM / nm);
   updateGoalConversions(day);
 });
 
@@ -681,9 +685,9 @@ gYears.addEventListener('input', () => {
   if (isNaN(yrs) || yrs <= 0) return;
   const nmYear = WORLD_NM / yrs;
   const day    = nmYear / DAYS_YEAR;
-  gNmDay.value   = fmt(day);
-  gNmMonth.value = fmt(day * DAYS_MONTH);
-  gNmYear.value  = fmt(nmYear, 0);
+  gNmDay.value   = fmtInput(day);
+  gNmMonth.value = fmtInput(day * DAYS_MONTH);
+  gNmYear.value  = fmtInput(nmYear, 0);
   updateGoalConversions(day);
 });
 
@@ -691,10 +695,10 @@ function goalsPageLoad() {
   const goal  = load(KEYS.goal);
   const seeds = load(KEYS.seeds);
   if (goal && goal.nmPerDay > 0) {
-    gNmDay.value   = fmt(goal.nmPerDay);
-    gNmMonth.value = fmt(goal.nmPerDay * DAYS_MONTH);
-    gNmYear.value  = fmt(goal.nmPerDay * DAYS_YEAR, 0);
-    gYears.value   = fmt(WORLD_NM / (goal.nmPerDay * DAYS_YEAR), 2);
+    gNmDay.value   = fmtInput(goal.nmPerDay);
+    gNmMonth.value = fmtInput(goal.nmPerDay * DAYS_MONTH);
+    gNmYear.value  = fmtInput(goal.nmPerDay * DAYS_YEAR, 0);
+    gYears.value   = fmtInput(WORLD_NM / (goal.nmPerDay * DAYS_YEAR));
     updateGoalConversions(goal.nmPerDay);
   }
   if (seeds) {
@@ -711,17 +715,17 @@ function makeSeedPair(nmId, smId) {
   const smEl = document.getElementById(smId);
   nmEl.addEventListener('input', () => {
     const v = parseFloat(nmEl.value);
-    smEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+    smEl.value = isNaN(v) ? '' : fmtInput(nmToSm(v));
   });
   smEl.addEventListener('input', () => {
     const v = parseFloat(smEl.value);
-    nmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+    nmEl.value = isNaN(v) ? '' : fmtInput(smToNm(v));
   });
   return {
     getNm: () => parseFloat(nmEl.value) || 0,
     setNm: (nm) => {
-      nmEl.value = nm > 0 ? fmt(nm) : '';
-      smEl.value = nm > 0 ? fmt(nmToSm(nm)) : '';
+      nmEl.value = nm > 0 ? fmtInput(nm) : '';
+      smEl.value = nm > 0 ? fmtInput(nmToSm(nm)) : '';
     }
   };
 }
@@ -737,11 +741,13 @@ document.getElementById('goals-ok-btn').addEventListener('click', () => {
     return;
   }
   save(KEYS.goal, { nmPerDay: nmDay });
-  save(KEYS.seeds, {
-    nmMonth: seedMonth.getNm(),
-    nmYear:  seedYear.getNm(),
-    nmLife:  seedLife.getNm()
-  });
+
+  // Enforce lifetime >= year >= month so totals are always self-consistent
+  const nmMonth = seedMonth.getNm();
+  const nmYear  = Math.max(nmMonth, seedYear.getNm());
+  const nmLife  = Math.max(nmYear,  seedLife.getNm());
+  save(KEYS.seeds, { nmMonth, nmYear, nmLife });
+
   showView('main-view');
   renderMain();
 });
@@ -947,11 +953,11 @@ const convNmEl = document.getElementById('conv-nm');
 const convMiEl = document.getElementById('conv-mi');
 convNmEl.addEventListener('input', () => {
   const v = parseFloat(convNmEl.value);
-  convMiEl.value = isNaN(v) ? '' : fmt(nmToSm(v));
+  convMiEl.value = isNaN(v) ? '' : fmtInput(nmToSm(v));
 });
 convMiEl.addEventListener('input', () => {
   const v = parseFloat(convMiEl.value);
-  convNmEl.value = isNaN(v) ? '' : fmt(smToNm(v));
+  convNmEl.value = isNaN(v) ? '' : fmtInput(smToNm(v));
 });
 
 // ── Service worker ────────────────────────────────────────────
