@@ -471,12 +471,28 @@ function currentPeriodKeys() {
   };
 }
 
-function addRun(nm) {
+function checkRollover() {
   const seeds = getSeeds();
   const { monthKey, yearKey } = currentPeriodKeys();
-  // Reset period counters when crossing a month or year boundary.
-  if (seeds.monthKey !== monthKey) { seeds.nmMonth = 0; seeds.monthKey = monthKey; }
-  if (seeds.yearKey  !== yearKey)  { seeds.nmYear  = 0; seeds.yearKey  = yearKey;  }
+  let changed = false;
+  if (seeds.monthKey && seeds.monthKey !== monthKey) {
+    seeds.prevMonth = { nm: seeds.nmMonth || 0, monthKey: seeds.monthKey };
+    seeds.nmMonth   = 0;
+    seeds.monthKey  = monthKey;
+    changed = true;
+  }
+  if (seeds.yearKey && seeds.yearKey !== yearKey) {
+    seeds.prevYear = { nm: seeds.nmYear || 0, yearKey: seeds.yearKey };
+    seeds.nmYear   = 0;
+    seeds.yearKey  = yearKey;
+    changed = true;
+  }
+  if (changed) save(KEYS.seeds, seeds);
+}
+
+function addRun(nm) {
+  checkRollover();
+  const seeds = getSeeds();
   seeds.nmMonth = (seeds.nmMonth || 0) + nm;
   seeds.nmYear  = (seeds.nmYear  || 0) + nm;
   seeds.nmLife  = (seeds.nmLife  || 0) + nm;
@@ -591,6 +607,7 @@ function renderMain() {
 }
 
 function init() {
+  checkRollover();
   updateGoalConversions(0);
   const goal = load(KEYS.goal);
   if (!goal) {
@@ -903,6 +920,35 @@ function renderRing() {
     }
   }
 
+  // Previous period summaries
+  const seeds = getSeeds();
+  let prevRows = '';
+  if (goal && goal.nmPerDay > 0) {
+    if (seeds.prevMonth) {
+      const [py, pm] = seeds.prevMonth.monthKey.split('-').map(Number);
+      const label    = `${MONTHS[pm - 1]} ${py}`;
+      const mGoal    = goal.nmPerDay * new Date(py, pm, 0).getDate();
+      const delta    = seeds.prevMonth.nm - mGoal;
+      const cls      = delta >= 0 ? 'ahead' : 'behind';
+      const sign     = delta >= 0 ? '+' : '−';
+      prevRows += `<div class="stat-row">
+        <span class="stat-label">${label}</span>
+        <span class="stat-value"><span class="delta ${cls}">${sign}${dispVal(Math.abs(delta))} vs goal</span></span>
+      </div>`;
+    }
+    if (seeds.prevYear) {
+      const yGoal = goal.nmPerDay * DAYS_YEAR;
+      const delta  = seeds.prevYear.nm - yGoal;
+      const cls    = delta >= 0 ? 'ahead' : 'behind';
+      const sign   = delta >= 0 ? '+' : '−';
+      prevRows += `<div class="stat-row">
+        <span class="stat-label">${seeds.prevYear.yearKey} (year)</span>
+        <span class="stat-value"><span class="delta ${cls}">${sign}${dispVal(Math.abs(delta))} vs goal</span></span>
+      </div>`;
+    }
+    if (prevRows) prevRows = `<div class="section-heading" style="margin-top:12px">Previous Periods</div>${prevRows}`;
+  }
+
   document.getElementById('progress-section').innerHTML = `
     <div class="card">
       <div class="section-heading">Around the World</div>
@@ -933,6 +979,7 @@ function renderRing() {
         </div>
       </div>
       ${projRow}
+      ${prevRows}
     </div>
   `;
 
