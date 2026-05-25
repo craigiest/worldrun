@@ -9,6 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="WorldRun" />
   <meta name="theme-color" content="#0f1923" />
   <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
   <title>WorldRun</title>
   <style>
     /* ── Reset & base ── */
@@ -199,8 +200,7 @@
     }
     .stat-row:last-child { border-bottom: none; }
     .stat-label { font-size: .85rem; color: var(--muted); }
-    .stat-value { font-size: 1rem; font-weight: 600; text-align: right; }
-    .stat-value.both { font-size: .85rem; line-height: 1.6; }
+    .stat-value { font-size: 1rem; font-weight: 600; text-align: right; line-height: 1.5; }
 
     .pace-bar-wrap {
       height: 6px;
@@ -226,6 +226,20 @@
     }
     .delta.ahead  { background: rgba(0,229,160,.15); color: var(--accent2); }
     .delta.behind { background: rgba(255,107,107,.15); color: var(--warn); }
+
+    /* ── Run added flash ── */
+    @keyframes flash-green {
+      0%   { box-shadow: 0 0 0 0 rgba(0,229,160,.6); }
+      60%  { box-shadow: 0 0 0 12px rgba(0,229,160,0); }
+      100% { box-shadow: none; }
+    }
+    .flash { animation: flash-green .6s ease forwards; }
+
+    /* ── Date card style ── */
+    #date-card {
+      background: linear-gradient(135deg, var(--surface) 0%, #1e3048 100%);
+      border-left: 3px solid var(--accent);
+    }
 
     /* ── Circular progress ring ── */
     .ring-wrap {
@@ -548,6 +562,10 @@ document.getElementById('add-run-btn').addEventListener('click', () => {
   addRun(nm);
   runNmEl.value = '';
   runSmEl.value = '';
+  const btn = document.getElementById('add-run-btn');
+  btn.classList.remove('flash');
+  void btn.offsetWidth; // reflow to restart animation
+  btn.classList.add('flash');
   renderMain();
 });
 
@@ -728,7 +746,7 @@ function dispVal(nm, dec = 2) {
   const u = getUnits();
   if (u === 'nm')   return dispNm(nm, dec);
   if (u === 'sm')   return dispSm(nm, dec);
-  return `${fmt(nm, dec)} nm / ${fmt(nmToSm(nm), dec)} sm`;
+  return `${fmt(nm, dec)}&thinsp;nm<br>${fmt(nmToSm(nm), dec)}&thinsp;sm`;
 }
 
 // ── renderStats ───────────────────────────────────────────────
@@ -738,18 +756,30 @@ function renderStats() {
   const p = computePace(goal);
   const sec = document.getElementById('stats-section');
 
-  function deltaEl(nm) {
-    const cls   = nm >= 0 ? 'ahead' : 'behind';
-    const label = nm >= 0 ? `+${dispVal(Math.abs(nm))} ahead` : `${dispVal(Math.abs(nm))} behind`;
-    return `<span class="delta ${cls}">${label}</span>`;
+  function deltaEl(nmDiff) {
+    const cls  = nmDiff >= 0 ? 'ahead' : 'behind';
+    const abs  = Math.abs(nmDiff);
+    const sign = nmDiff >= 0 ? '+' : '−';
+    const u    = getUnits();
+    let   val;
+    if (u === 'sm')        val = `${sign}${fmt(nmToSm(abs))} sm`;
+    else if (u === 'nm')   val = `${sign}${fmt(abs)} nm`;
+    else                   val = `${sign}${fmt(abs)} nm / ${fmt(nmToSm(abs))} sm`;
+    const word = nmDiff >= 0 ? 'ahead' : 'behind';
+    return `<span class="delta ${cls}">${val} ${word}</span>`;
   }
 
-  function paceBar(actual, goal) {
-    const pct = Math.min(100, goal > 0 ? (actual / goal * 100) : 0);
-    const behind = actual < goal * (new Date().getDate() / daysInMonth(new Date()));
-    const cls = pct >= 100 ? 'complete' : (behind ? 'behind' : 'on-pace');
+  // expectedFrac: fraction of period elapsed (for coloring behind/on-pace)
+  function paceBar(actual, goalAmt, expectedFrac) {
+    const pct    = Math.min(100, goalAmt > 0 ? (actual / goalAmt * 100) : 0);
+    const behind = actual < goalAmt * expectedFrac;
+    const cls    = pct >= 100 ? 'complete' : (behind ? 'behind' : 'on-pace');
     return `<div class="pace-bar-wrap"><div class="pace-bar ${cls}" style="width:${pct}%"></div></div>`;
   }
+
+  const today    = new Date();
+  const domFrac  = today.getDate() / p.daysInM;
+  const doyFrac  = p.doy / DAYS_YEAR;
 
   sec.innerHTML = `
     <div class="card">
@@ -762,7 +792,7 @@ function renderStats() {
         <span class="stat-label">Month goal</span>
         <span class="stat-value">${dispVal(p.monthGoal)}</span>
       </div>
-      ${paceBar(p.totals.nmMonth, p.monthGoal)}
+      ${paceBar(p.totals.nmMonth, p.monthGoal, domFrac)}
       <div class="stat-row">
         <span class="stat-label">vs. pace</span>
         <span class="stat-value">${deltaEl(p.aheadMonth)}</span>
@@ -783,7 +813,7 @@ function renderStats() {
         <span class="stat-label">Year goal (360 days)</span>
         <span class="stat-value">${dispVal(p.yearGoal)}</span>
       </div>
-      ${paceBar(p.totals.nmYear, p.yearGoal)}
+      ${paceBar(p.totals.nmYear, p.yearGoal, doyFrac)}
       <div class="stat-row">
         <span class="stat-label">vs. pace</span>
         <span class="stat-value">${deltaEl(p.aheadYear)}</span>
