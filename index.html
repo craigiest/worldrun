@@ -226,6 +226,44 @@
     }
     .delta.ahead  { background: rgba(0,229,160,.15); color: var(--accent2); }
     .delta.behind { background: rgba(255,107,107,.15); color: var(--warn); }
+
+    /* ── Circular progress ring ── */
+    .ring-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 0 4px;
+    }
+    .ring-svg { overflow: visible; }
+    .ring-track { fill: none; stroke: var(--surface2); }
+    .ring-fill  {
+      fill: none;
+      stroke: var(--accent);
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s ease;
+    }
+    .ring-label-pct {
+      font-size: 2rem;
+      font-weight: 800;
+      fill: var(--text);
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .ring-label-sub {
+      font-size: .75rem;
+      fill: var(--muted);
+      text-anchor: middle;
+      dominant-baseline: middle;
+    }
+    .ring-stats {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-top: 12px;
+    }
+    .ring-stat { text-align: center; }
+    .ring-stat .val { font-size: 1rem; font-weight: 700; color: var(--accent2); }
+    .ring-stat .lbl { font-size: .75rem; color: var(--muted); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -753,7 +791,58 @@ function renderStats() {
     </div>
   `;
 }
-function renderRing()  { /* Step 7 */ }
+function renderRing() {
+  const goal = load(KEYS.goal);
+  const totals = computeTotals();
+  const nmLife = totals.nmLife;
+  const pct    = Math.min(1, nmLife / WORLD_NM);
+  const pctDisp = (pct * 100).toFixed(pct < 0.001 ? 4 : pct < 0.01 ? 3 : pct < 0.1 ? 2 : 1);
+
+  const R   = 90;
+  const cx  = 110;
+  const cy  = 110;
+  const circ = 2 * Math.PI * R;
+  const offset = circ * (1 - pct);
+
+  const remaining = Math.max(0, WORLD_NM - nmLife);
+
+  document.getElementById('progress-section').innerHTML = `
+    <div class="card">
+      <div class="section-heading">Around the World</div>
+      <div class="ring-wrap">
+        <svg class="ring-svg" width="220" height="220" viewBox="0 0 220 220">
+          <circle class="ring-track" cx="${cx}" cy="${cy}" r="${R}" stroke-width="14"/>
+          <circle class="ring-fill" cx="${cx}" cy="${cy}" r="${R}" stroke-width="14"
+            stroke-dasharray="${circ}"
+            stroke-dashoffset="${circ}"
+            transform="rotate(-90 ${cx} ${cy})"
+            id="ring-circle"/>
+          <text class="ring-label-pct" x="${cx}" y="${cy - 10}">${pctDisp}%</text>
+          <text class="ring-label-sub" x="${cx}" y="${cy + 16}">of Earth</text>
+        </svg>
+        <div class="ring-stats">
+          <div class="ring-stat">
+            <div class="val">${dispVal(nmLife, 1)}</div>
+            <div class="lbl">Run</div>
+          </div>
+          <div class="ring-stat">
+            <div class="val">${dispVal(remaining, 0)}</div>
+            <div class="lbl">Remaining</div>
+          </div>
+          <div class="ring-stat">
+            <div class="val">${dispVal(WORLD_NM, 0)}</div>
+            <div class="lbl">Total goal</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  requestAnimationFrame(() => {
+    const el = document.getElementById('ring-circle');
+    if (el) el.style.strokeDashoffset = offset;
+  });
+}
 
 // ── Service worker ────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
